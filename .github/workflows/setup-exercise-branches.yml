@@ -2,14 +2,12 @@ name: Setup Exercise Branches
 
 # This workflow creates the necessary branches and files for the
 # "Introduction to Repository Management" exercise, then merges them.
-# It only runs when this workflow file itself is first pushed.
+# It copies files already committed to the copilot working branch.
 
 on:
   push:
     branches:
       - copilot/introduction-to-repository-management
-    paths:
-      - ".github/workflows/setup-exercise-branches.yml"
 
 permissions:
   contents: write
@@ -25,6 +23,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: copilot/introduction-to-repository-management
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Configure Git
@@ -37,395 +36,91 @@ jobs:
         run: |
           git fetch origin
           if git ls-remote --heads origin prepare-to-collaborate | grep -q prepare-to-collaborate; then
-            echo "already_setup=true" >> $GITHUB_OUTPUT
+            echo "already_setup=true" >> "$GITHUB_OUTPUT"
             echo "Branch prepare-to-collaborate already exists, skipping setup"
           else
-            echo "already_setup=false" >> $GITHUB_OUTPUT
+            echo "already_setup=false" >> "$GITHUB_OUTPUT"
             echo "Starting exercise branch setup..."
           fi
 
-      # -------------------------------------------------------
-      # STEP 1: Create prepare-to-collaborate with .gitignore
-      # -------------------------------------------------------
-      - name: Create prepare-to-collaborate with .gitignore
+      - name: Step 1 - Create prepare-to-collaborate with .gitignore
         if: steps.check_setup.outputs.already_setup == 'false'
         run: |
           git checkout -b prepare-to-collaborate origin/main
-          printf '%s\n' \
-            '# Python backend for club management' \
-            '__pycache__/' \
-            '*.py[cod]      # Python compiled files' \
-            '*$py.class' \
-            '*.so' \
-            '.Python' \
-            'env/' \
-            '.env           # Where database passwords are stored' \
-            'venv/          # Virtual environment for testing' \
-            '.venv' \
-            '' \
-            '# Teacher IDE settings' \
-            '.vscode/       # Ms. Rodriguez uses VS Code' \
-            '.idea/         # Mr. Chen uses PyCharm' \
-            '' \
-            '# Local development & testing' \
-            'instance/' \
-            '.pytest_cache/' \
-            '.coverage      # Test coverage reports' \
-            'htmlcov/' \
-            '' \
-            '# Staff computer files' \
-            '.DS_Store      # For teachers with Macs' \
-            'Thumbs.db      # For teachers with Windows' \
-            > .gitignore
-          git add .gitignore
+          git checkout copilot/introduction-to-repository-management -- .gitignore
           git commit -m "Add .gitignore for Python project"
           git push origin prepare-to-collaborate
-
-      - name: Wait for Step 1 workflow
-        if: steps.check_setup.outputs.already_setup == 'false'
-        run: |
-          echo "Waiting 90 seconds for Step 1 workflow to trigger and complete..."
+          echo "Step 1 done - waiting for exercise workflow to process..."
           sleep 90
 
-      # -------------------------------------------------------
-      # STEP 2: Add CONTRIBUTING.md and CODEOWNERS
-      # -------------------------------------------------------
-      - name: Add CONTRIBUTING.md and CODEOWNERS
+      - name: Step 2 - Add CONTRIBUTING.md and CODEOWNERS
         if: steps.check_setup.outputs.already_setup == 'false'
         run: |
           git checkout prepare-to-collaborate
-          python3 - << 'PYEOF'
-          import textwrap
-          contributing = textwrap.dedent("""
-              # Contributing to the Mergington High Extra-Curricular Activities Website
-
-              Thank you for your interest in helping improve our school's website!
-              Whether you want to add your club's activities, fix a bug, or suggest
-              new features, this guide will help you get started. \U0001f389
-
-              ## Development Setup
-
-              1. Clone the repository to your computer.
-              2. Install Python requirements: `pip install -r requirements.txt`.
-              3. Run the development server: `python src/app.py`.
-              4. Visit http://localhost:8000 in your browser to see the website.
-
-              ## Making Changes
-
-              1. Create a new branch for your changes.
-                 - Use descriptive names like `art-gallery-feature` or `fix-chess-signup`
-              2. Make your changes and test them locally with sample student data.
-                 - Use the MongoDB extension to preview the included sample date.
-              3. Push your branch and create a pull request.
-              4. Wait for review and address any feedback.
-
-              ## Code Style
-
-              - Follow PEP 8 for Python code (backend).
-              - Use clear, descriptive variable names (student_name, start_time, etc.)
-              - Add comments to describe blocks of logic.
-
-              ## Need help or have ideas?
-
-              - Check the open issues first.
-                - If your problem is there, add a comment or up-vote.
-                - If not there, create a new issue. Be as descriptive as possible.
-              - Ask in our weekly IT Club office hours (Thursdays at lunch in Room 203).
-              - For other general problems, email the tech team at techclub@mergingtonhigh.example.edu
-          """).lstrip('\n')
-          with open('CONTRIBUTING.md', 'w') as f:
-              f.write(contributing)
-
-          codeowners = textwrap.dedent("""
-              # Core functionality - changes here should be rare!
-              /src/app.py                   @LFASProtocol
-              /src/backend/database.py      @LFASProtocol
-              /src/backend/routers/auth.py  @LFASProtocol
-
-              # The frontend will need refactored soon to be more object oriented.
-              /src/static/   @LFASProtocol
-          """).lstrip('\n')
-          with open('CODEOWNERS', 'w') as f:
-              f.write(codeowners)
-          PYEOF
-          git add CONTRIBUTING.md CODEOWNERS
+          git checkout copilot/introduction-to-repository-management -- CONTRIBUTING.md CODEOWNERS
           git commit -m "Add CONTRIBUTING.md and CODEOWNERS"
           git push origin prepare-to-collaborate
-
-      - name: Wait for Step 2 workflow
-        if: steps.check_setup.outputs.already_setup == 'false'
-        run: |
-          echo "Waiting 90 seconds for Step 2 workflow to trigger and complete..."
+          echo "Step 2 done - waiting for exercise workflow to process..."
           sleep 90
 
-      # -------------------------------------------------------
-      # STEP 3: Add CODE_OF_CONDUCT.md and issue templates
-      # -------------------------------------------------------
-      - name: Add CODE_OF_CONDUCT.md to prepare-to-collaborate
+      - name: Step 3a - Add CODE_OF_CONDUCT.md to prepare-to-collaborate
         if: steps.check_setup.outputs.already_setup == 'false'
         run: |
           git checkout prepare-to-collaborate
-          python3 - << 'PYEOF'
-          import textwrap
-          content = textwrap.dedent("""
-              # Mergington High School Code of Conduct
-
-              ## Our Pledge
-
-              In the interest of fostering an open and welcoming environment for
-              our school community, we as contributors and maintainers pledge to
-              make participation in the Extra-Curricular Activities project a
-              respectful and harassment-free experience for everyone.
-
-              ## Our Standards
-
-              Examples of behavior that contributes to creating a positive environment include:
-
-              - Using welcoming and inclusive language
-              - Being respectful of differing viewpoints and experiences
-              - Gracefully accepting constructive criticism
-              - Focusing on what is best for the students and the school community
-              - Showing empathy towards other community members
-
-              Examples of unacceptable behavior include:
-
-              - The use of inappropriate language or imagery
-              - Trolling, insulting comments, and personal attacks
-              - Public or private harassment
-              - Publishing others' private information without explicit permission
-              - Other conduct which could reasonably be considered inappropriate in a school setting
-
-              ## Responsibilities
-
-              Project maintainers are responsible for clarifying the standards of
-              acceptable behavior and are expected to take appropriate and fair
-              corrective action in response to any instances of unacceptable behavior.
-
-              Project maintainers have the right and responsibility to remove, edit,
-              or reject comments, commits, code, issues, and other contributions that
-              are not aligned to this Code of Conduct.
-
-              ## Scope
-
-              This Code of Conduct applies both within project spaces and in public spaces
-              when an individual is representing the project or the school. Examples of
-              representing the project include using an official project email address,
-              posting via an official social media account, or acting as an appointed
-              representative at an online or offline event.
-
-              ## Enforcement
-
-              Instances of abusive, harassing, or otherwise unacceptable behavior may be
-              reported to the IT Club faculty advisor. All complaints will be reviewed and
-              investigated promptly and fairly.
-
-              Project maintainers who do not follow or enforce the Code of Conduct in good faith may
-              face temporary or permanent repercussions as determined by the school administration.
-
-              ## Attribution
-
-              This Code of Conduct is adapted from the [Contributor Covenant](https://www.contributor-covenant.org),
-              version 1.4, available at [https://www.contributor-covenant.org/version/1/4/code-of-conduct.html](https://www.contributor-covenant.org/version/1/4/code-of-conduct.html)
-          """).lstrip('\n')
-          with open('CODE_OF_CONDUCT.md', 'w') as f:
-              f.write(content)
-          PYEOF
-          git add CODE_OF_CONDUCT.md
+          git checkout copilot/introduction-to-repository-management -- CODE_OF_CONDUCT.md
           git commit -m "Add CODE_OF_CONDUCT.md"
           git push origin prepare-to-collaborate
 
-      - name: Create add-issue-templates branch with templates
+      - name: Step 3b - Create add-issue-templates with issue templates
         if: steps.check_setup.outputs.already_setup == 'false'
         run: |
           git checkout -b add-issue-templates origin/main
-          mkdir -p .github/ISSUE_TEMPLATE
-          python3 - << 'PYEOF'
-          import textwrap
-          bug_report = textwrap.dedent("""
-              ---
-              name: Bug report
-              about: Create a report to help us improve
-              title: ''
-              labels: bug
-              assignees: ''
-
-              ---
-
-              **Describe the bug**
-              A clear and concise description of what the bug is.
-
-              **To Reproduce**
-              Steps to reproduce the behavior:
-              1. Go to '...'
-              2. Click on '....'
-              3. Scroll down to '....'
-              4. See error
-
-              **Expected behavior**
-              A clear and concise description of what you expected to happen.
-
-              **Screenshots**
-              If applicable, add screenshots to help explain your problem.
-
-              **Additional context**
-              Add any other context about the problem here.
-          """).lstrip('\n')
-          with open('.github/ISSUE_TEMPLATE/bug_report.md', 'w') as f:
-              f.write(bug_report)
-
-          feature_request = textwrap.dedent("""
-              ---
-              name: Feature request
-              about: Suggest an idea for this project
-              title: ''
-              labels: enhancement
-              assignees: ''
-
-              ---
-
-              **Is your feature request related to a problem? Please describe.**
-              A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
-
-              **Describe the solution you'd like**
-              A clear and concise description of what you want to happen.
-
-              **Describe alternatives you've considered**
-              A clear and concise description of any alternative solutions or features you've considered.
-
-              **Additional context**
-              Add any other context or screenshots about the feature request here.
-          """).lstrip('\n')
-          with open('.github/ISSUE_TEMPLATE/feature_request.md', 'w') as f:
-              f.write(feature_request)
-          PYEOF
-          git add .github/ISSUE_TEMPLATE/
+          git checkout copilot/introduction-to-repository-management -- .github/ISSUE_TEMPLATE/
           git commit -m "Add issue templates for bug reports and feature requests"
           git push origin add-issue-templates
-
-      - name: Wait for Step 3 workflow
-        if: steps.check_setup.outputs.already_setup == 'false'
-        run: |
-          echo "Waiting 90 seconds for Step 3 workflow to trigger and complete..."
+          echo "Step 3 done - waiting for exercise workflow to process..."
           sleep 90
 
-      # -------------------------------------------------------
-      # STEP 4: Add dependabot.yml and SECURITY.md
-      # -------------------------------------------------------
-      - name: Add dependabot.yml and SECURITY.md
+      - name: Step 4 - Add dependabot.yml and SECURITY.md
         if: steps.check_setup.outputs.already_setup == 'false'
         run: |
           git checkout prepare-to-collaborate
-          python3 - << 'PYEOF'
-          import textwrap
-          dependabot = textwrap.dedent("""
-              version: 2
-              updates:
-                - package-ecosystem: "pip"
-                  directory: "/"
-                  schedule:
-                    interval: "weekly"
-          """).lstrip('\n')
-          with open('.github/dependabot.yml', 'w') as f:
-              f.write(dependabot)
-
-          security = textwrap.dedent("""
-              # Mergington High School Security Policy
-
-              ## Reporting a Vulnerability
-
-              At Mergington High, we take the security of our Extra-Curricular Activities website seriously, especially
-              since it contains student information. If you discover a security vulnerability, please follow these steps:
-
-              1. **Do not** create an issue on this repository, disclose the vulnerability publicly, or discuss it with other teachers/students.
-              1. In the top navigation of this repository, click the **Security** tab.
-              1. In the top right, click the **Report a vulnerability** button.
-              1. Fill out the provided form. It will request information like:
-                 - A description of the vulnerability
-                 - Steps to reproduce the issue
-                 - Potential impact on student data or website functionality
-                 - Suggested fix (if you have one)
-              1. Email the IT Club faculty advisor at techsupport@mergingtonhigh.example.edu and inform them you have made a report. **Do not** include any vulnerability details.
-
-              ## Response Timeline
-
-              - We will acknowledge receipt of your report within 2 school days
-              - We will provide an initial assessment within 5 school days
-              - Critical issues affecting student data will be addressed immediately
-              - We will create a private fork to solve the issue and invite you as a collaborator so you can see our progress and contribute.
-
-              ## Thank You
-
-              Your help in keeping our school's digital resources secure is greatly appreciated!
-              Responsible disclosure of security vulnerabilities helps protect our entire school community.
-          """).lstrip('\n')
-          with open('SECURITY.md', 'w') as f:
-              f.write(security)
-          PYEOF
-          git add .github/dependabot.yml SECURITY.md
+          git checkout copilot/introduction-to-repository-management -- .github/dependabot.yml SECURITY.md
           git commit -m "Add dependabot.yml and SECURITY.md"
           git push origin prepare-to-collaborate
-
-      - name: Wait for Step 4 workflow
-        if: steps.check_setup.outputs.already_setup == 'false'
-        run: |
-          echo "Waiting 90 seconds for Step 4 workflow to trigger and complete..."
+          echo "Step 4 done - waiting for exercise workflow to process..."
           sleep 90
 
-      # -------------------------------------------------------
-      # STEP 5: Create PRs and merge them
-      # -------------------------------------------------------
-      - name: Create PR for prepare-to-collaborate
+      - name: Step 5 - Create and merge PRs
         if: steps.check_setup.outputs.already_setup == 'false'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh pr create \
             --title "Prepare to collaborate" \
-            --body "Adding repository management and collaboration files: .gitignore, CONTRIBUTING.md, CODEOWNERS, CODE_OF_CONDUCT.md, dependabot.yml, SECURITY.md" \
+            --body "Adding repository management files for the exercise." \
             --head prepare-to-collaborate \
-            --base main || echo "PR may already exist"
+            --base main || true
 
-      - name: Create PR for add-issue-templates
-        if: steps.check_setup.outputs.already_setup == 'false'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
           gh pr create \
             --title "Add issue templates" \
             --body "Adding standardized issue templates for bug reports and feature requests." \
             --head add-issue-templates \
-            --base main || echo "PR may already exist"
+            --base main || true
 
-      - name: Wait for PRs to be ready
-        if: steps.check_setup.outputs.already_setup == 'false'
-        run: sleep 30
+          sleep 30
 
-      - name: Merge PR for prepare-to-collaborate
-        if: steps.check_setup.outputs.already_setup == 'false'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
           gh pr merge prepare-to-collaborate \
             --merge \
             --subject "Merge prepare-to-collaborate: add repository management files" \
-            --admin || echo "PR merge may have failed or already been merged"
+            --admin || true
 
-      - name: Wait before merging second PR
-        if: steps.check_setup.outputs.already_setup == 'false'
-        run: sleep 30
+          sleep 30
 
-      - name: Merge PR for add-issue-templates
-        if: steps.check_setup.outputs.already_setup == 'false'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
           gh pr merge add-issue-templates \
             --merge \
             --subject "Merge add-issue-templates: add issue templates" \
-            --admin || echo "PR merge may have failed or already been merged"
+            --admin || true
 
-      - name: Exercise setup complete
-        run: |
-          echo "Exercise branch setup complete!"
-          echo "Branches created: prepare-to-collaborate, add-issue-templates"
-          echo "PRs created and merged to main."
+      - name: Summary
+        run: echo "Exercise setup workflow complete!"

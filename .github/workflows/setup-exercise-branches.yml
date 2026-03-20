@@ -8,6 +8,7 @@ on:
   push:
     branches:
       - copilot/introduction-to-repository-management
+  workflow_dispatch:
 
 permissions:
   contents: write

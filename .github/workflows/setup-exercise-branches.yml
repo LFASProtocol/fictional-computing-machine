@@ -1,0 +1,127 @@
+name: Setup Exercise Branches
+
+# This workflow creates the necessary branches and files for the
+# "Introduction to Repository Management" exercise, then merges them.
+# It copies files already committed to the copilot working branch.
+
+on:
+  push:
+    branches:
+      - copilot/introduction-to-repository-management
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  setup_branches:
+    name: Create and push exercise branches step by step
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: copilot/introduction-to-repository-management
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Check if exercise is already set up
+        id: check_setup
+        run: |
+          git fetch origin
+          if git ls-remote --heads origin prepare-to-collaborate | grep -q prepare-to-collaborate; then
+            echo "already_setup=true" >> "$GITHUB_OUTPUT"
+            echo "Branch prepare-to-collaborate already exists, skipping setup"
+          else
+            echo "already_setup=false" >> "$GITHUB_OUTPUT"
+            echo "Starting exercise branch setup..."
+          fi
+
+      - name: Step 1 - Create prepare-to-collaborate with .gitignore
+        if: steps.check_setup.outputs.already_setup == 'false'
+        run: |
+          git checkout -b prepare-to-collaborate origin/main
+          git checkout copilot/introduction-to-repository-management -- .gitignore
+          git commit -m "Add .gitignore for Python project"
+          git push origin prepare-to-collaborate
+          echo "Step 1 done - waiting for exercise workflow to process..."
+          sleep 90
+
+      - name: Step 2 - Add CONTRIBUTING.md and CODEOWNERS
+        if: steps.check_setup.outputs.already_setup == 'false'
+        run: |
+          git checkout prepare-to-collaborate
+          git checkout copilot/introduction-to-repository-management -- CONTRIBUTING.md CODEOWNERS
+          git commit -m "Add CONTRIBUTING.md and CODEOWNERS"
+          git push origin prepare-to-collaborate
+          echo "Step 2 done - waiting for exercise workflow to process..."
+          sleep 90
+
+      - name: Step 3a - Add CODE_OF_CONDUCT.md to prepare-to-collaborate
+        if: steps.check_setup.outputs.already_setup == 'false'
+        run: |
+          git checkout prepare-to-collaborate
+          git checkout copilot/introduction-to-repository-management -- CODE_OF_CONDUCT.md
+          git commit -m "Add CODE_OF_CONDUCT.md"
+          git push origin prepare-to-collaborate
+
+      - name: Step 3b - Create add-issue-templates with issue templates
+        if: steps.check_setup.outputs.already_setup == 'false'
+        run: |
+          git checkout -b add-issue-templates origin/main
+          git checkout copilot/introduction-to-repository-management -- .github/ISSUE_TEMPLATE/
+          git commit -m "Add issue templates for bug reports and feature requests"
+          git push origin add-issue-templates
+          echo "Step 3 done - waiting for exercise workflow to process..."
+          sleep 90
+
+      - name: Step 4 - Add dependabot.yml and SECURITY.md
+        if: steps.check_setup.outputs.already_setup == 'false'
+        run: |
+          git checkout prepare-to-collaborate
+          git checkout copilot/introduction-to-repository-management -- .github/dependabot.yml SECURITY.md
+          git commit -m "Add dependabot.yml and SECURITY.md"
+          git push origin prepare-to-collaborate
+          echo "Step 4 done - waiting for exercise workflow to process..."
+          sleep 90
+
+      - name: Step 5 - Create and merge PRs
+        if: steps.check_setup.outputs.already_setup == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr create \
+            --title "Prepare to collaborate" \
+            --body "Adding repository management files for the exercise." \
+            --head prepare-to-collaborate \
+            --base main || true
+
+          gh pr create \
+            --title "Add issue templates" \
+            --body "Adding standardized issue templates for bug reports and feature requests." \
+            --head add-issue-templates \
+            --base main || true
+
+          sleep 30
+
+          gh pr merge prepare-to-collaborate \
+            --merge \
+            --subject "Merge prepare-to-collaborate: add repository management files" \
+            --admin || true
+
+          sleep 30
+
+          gh pr merge add-issue-templates \
+            --merge \
+            --subject "Merge add-issue-templates: add issue templates" \
+            --admin || true
+
+      - name: Summary
+        run: echo "Exercise setup workflow complete!"
